@@ -1,5 +1,6 @@
-# Detection of  Moving Objects  with Non-stationary  Cameras in  5.8ms: Bringing
-# Motion Detection to Your Mobile Device
+Detection of  Moving Objects  with Non-stationary  Cameras in  5.8ms: Bringing
+Motion Detection to Your Mobile Device
+================================================================================
 
 This  Git repository  is an  implementation of  the paper  "Detection of  Moving
 Objects with Non-stationary Cameras in  5.8ms: Bringing Motion Detection to Your
@@ -8,7 +9,8 @@ presented in the paper, with a bit  of tuning on the parameters. The results may
 differ a bit, as the variance update  equation was modified from the one used to
 produce results of the paper. However, they should not differ significantly.
 
-## Important notice
+Important notice
+--------------------------------------------------------------------------------
 
 * The code that we  ditributed earlier through e-mail had an  issue that it only
   gave good results with MS compiler. There was a bug that abs function was used
@@ -22,7 +24,8 @@ produce results of the paper. However, they should not differ significantly.
   an try,  as the detection  results won't change, but  bare in mind  that there
   might be compiler related issues.
 
-## How to compile and test
+How to compile and test
+--------------------------------------------------------------------------------
 
 Simply use CMake and target the output directory as "build" in the same level as
 "src". In command line this would be (from the project root folder)
@@ -39,7 +42,8 @@ Once it is built, you can try running
 
 > project_root/build >> ./fastMCD ../data/woman.mp4 0
 
-## When using it as a part of your program
+When using it as a part of your program
+--------------------------------------------------------------------------------
 
 What you mostly need are only two files:
 
@@ -49,7 +53,8 @@ What you mostly need are only two files:
 
 Usage is pretty straightforward. Simply init, motion compensate, and update.
 
-## License
+License
+--------------------------------------------------------------------------------
 
 Copyright (c) 2016 Kwang Moo Yi.
 
@@ -70,7 +75,8 @@ endorse or  promote products derived  from this software without  specific prior
 written  permission.   THIS SOFTWARE  IS  PROVIDED  ``AS  IS'' AND  WITHOUT  ANY
 WARRANTIES.  USE AT YOUR OWN RISK!
 
-## About the test video
+About the test video
+--------------------------------------------------------------------------------
 
 The    test    video   is    the    woman    dataset   from    the    [FragTrack
 Website](http://www.cs.technion.ac.il/~amita/fragtrack/fragtrack.htm).   If  you
