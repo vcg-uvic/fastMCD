@@ -1,5 +1,4 @@
-Detection of  Moving Objects  with Non-stationary  Cameras in  5.8ms: Bringing
-Motion Detection to Your Mobile Device
+Detection of  Moving Objects  with Non-stationary  Cameras in  5.8ms: Bringing Motion Detection to Your Mobile Device
 ================================================================================
 
 This  Git repository  is an  implementation of  the paper  "Detection of  Moving
