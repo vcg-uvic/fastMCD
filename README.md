@@ -60,7 +60,7 @@ Copyright (c) 2016 Kwang Moo Yi.
 All rights reserved.
 
 This  software is  strictly for  non-commercial use  only.  For  commercial use,
-please  contact  me at  kwang.m<dot>yi<AT>gmail<dot>com.   Also,  when used  for
+please  contact  me at  kwang.m.yi_at_gmail.com.   Also,  when used  for
 academic  purposes, please  cite the  paper  "Detection of  Moving Objects  with
 Non-stationary  Cameras  in 5.8ms:  Bringing  Motion  Detection to  Your  Mobile
 Device," Yi et al, CVPRW 2013 Redistribution and use for non-commercial purposes
