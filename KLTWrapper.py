@@ -9,6 +9,13 @@ class KLTWrapper:
         self.count = 0;
         self.flags = 0;
 
+        self.image = None
+        self.imgPrevGray = None
+        self.pyramid = None
+        self.prev_pyramid = None
+        self.swap_temp = None
+
+
 
         self.eig = None
         self.temp = None
@@ -29,18 +36,20 @@ class KLTWrapper:
 
     def InitFeatures(self, imgGray):
 
-        quality = 0.01
-        min_distance = 10
+        self.quality = 0.01
+        self.min_distance = 10
 
         (nj, ni, d) = imgGray.shape
 
-        count = ni / self.GRID_SIZE_W * nj / self.GRID_SIZE_H
+        self.count = ni / self.GRID_SIZE_W * nj / self.GRID_SIZE_H
 
 
-        cnt = 0
+
         lenI = ni / self.GRID_SIZE_W - 1
         lenJ = nj / self.GRID_SIZE_H - 1
         I = np.arange(lenI) * self.GRID_SIZE_W + np.full(lenI, self.GRID_SIZE_W / 2)
         J = np.arange(lenJ) * self.GRID_SIZE_H + np.full(lenJ, self.GRID_SIZE_H / 2)
         self.points1 = np.asarray([[t] for t in itertools.product(I, J)])
-        imgGray
+        self.imgPrevGray = imgGray.copy()
+        self.prev_pyramid, self.pyramid = self.pyramid, self.prev_pyramid
+        self.points0, self.points1 = self.points1, self.points0
