@@ -1,6 +1,6 @@
 import numpy as np
 import cv2
-
+import itertools
 
 class KLTWrapper:
     def __init__(self):
@@ -15,6 +15,9 @@ class KLTWrapper:
         self.maskimg = None
         self.GRID_SIZE_W = 32
         self.GRID_SIZE_H = 24
+        self.MAX_COUNT = 0
+        self.points0 = None
+        self.points1 = None
 
 
     def init(self, imgGray):
@@ -22,8 +25,7 @@ class KLTWrapper:
         (nj, ni, d) = imgGray.shape
 
         self.MAX_COUNT = (float(ni) / float(self.GRID_SIZE_W) + 1.0) * (float(nj) / float(self.GRID_SIZE_H) + 1.0)
-        self.points0 = (None,) * self.MAX_COUNT
-        self.points1 = (None,) * self.MAX_COUNT
+
 
     def InitFeatures(self, imgGray):
 
@@ -36,10 +38,9 @@ class KLTWrapper:
 
 
         cnt = 0
-        points1
-        for (int i = 0; i < ni / GRID_SIZE_W - 1; ++i) {
-        for (int j = 0; j < nj / GRID_SIZE_H - 1; ++j) {
-        points[1][cnt].x = i * GRID_SIZE_W + GRID_SIZE_W / 2;
-        points[1][cnt++].y = j * GRID_SIZE_H + GRID_SIZE_H / 2;
-        }
-        }
+        lenI = ni / self.GRID_SIZE_W - 1
+        lenJ = nj / self.GRID_SIZE_H - 1
+        I = np.arange(lenI) * self.GRID_SIZE_W + np.full(lenI, self.GRID_SIZE_W / 2)
+        J = np.arange(lenJ) * self.GRID_SIZE_H + np.full(lenJ, self.GRID_SIZE_H / 2)
+        self.points1 = np.asarray([[t] for t in itertools.product(I, J)])
+        imgGray
