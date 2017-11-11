@@ -59,8 +59,26 @@ class ProbModel:
         aDi = abs(Di)
         aDj = abs(Dj)
 
-        W_H = abs(Di) * (1 - abs(Dj))
+        W_H = aDi * (1 - aDj)
+        W_V = aDj * (1 - aDi)
 
         leftMean = self.shift(self.means, 0, -1)
         rightMean = self.shift(self.means, 0, 1)
-        W_H * ((Di+aDi)*leftMean + (aDi - Di)*rightMean) / 2
+
+        upMean = self.shift(self.means, -1, 0)
+        downMean = self.shift(self.means, 1, 0)
+
+        leftAge = self.shift(self.ages, 0, -1)
+        rightAge = self.shift(self.ages, 0, 1)
+
+        upAge = self.shift(self.ages, -1, 0)
+        downAge = self.shift(self.ages, 1, 0)
+
+        t0 = W_H * ((Di + aDi) * leftMean + (aDi - Di)*rightMean) / 2
+        a0 = W_H * ((Di + aDi) * leftAge  + (aDi - Di)*rightAge) / 2
+
+        t1 = W_V * ((Dj + aDj) * upMean + (aDj - Dj) * downMean) / 2
+        a1 = W_V * ((Dj + aDj) * upAge  + (aDj - Dj) * downAge) / 2
+
+
+
