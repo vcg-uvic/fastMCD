@@ -5,7 +5,7 @@ import itertools
 class ProbModel:
     def __init__(self):
         self.NUM_MODELS = 2
-        self.BLOCK_SIZE	= 4.0
+        self.BLOCK_SIZE	= 4
         self.curImage = None
         self.means = None
         self.vars = None
@@ -22,14 +22,15 @@ class ProbModel:
 
 
     def init(self, gray):
-        (self.obsHeight, self.obsWidth, d) = gray.shape
+        (self.obsHeight, self.obsWidth) = gray.shape
         self.curImage = gray
         (self.modelHeight, self.modelWidth) = (self.obsHeight/self.BLOCK_SIZE, self.obsWidth/self.BLOCK_SIZE)
-        self.means = np.zeros((self.NUM_MODELS, self.modelWidth*self.modelHeight))
-        self.vars = np.zeros((self.NUM_MODELS, self.modelWidth*self.modelHeight))
-        self.ages = np.zeros((self.NUM_MODELS, self.modelWidth*self.modelHeight))
-        self.modelIndexes = np.zeros(self.modelWidth*self.modelHeight)
-
+        self.means = np.zeros((self.NUM_MODELS, self.modelHeight, self.modelWidth))
+        self.vars = np.zeros((self.NUM_MODELS, self.modelHeight, self.modelWidth))
+        self.ages = np.zeros((self.NUM_MODELS, self.modelHeight, self.modelWidth))
+        self.modelIndexes = np.zeros((self.modelWidth, self.modelHeight))
+        self.means = np.arange(self.NUM_MODELS * self.modelHeight * self.modelWidth).reshape(self.NUM_MODELS, self.modelHeight, self.modelWidth).astype(float)
+        self.temp_means = -1 * np.ones((self.NUM_MODELS, self.modelHeight, self.modelWidth))
         h = np.identity(3)
 
     def shift(self, arr, rr, cc):
@@ -42,43 +43,75 @@ class ProbModel:
 
     def motionCompensate(self, H):
 
+        I = np.asarray(range(self.modelWidth) * self.modelHeight)
+        J = np.repeat(range(self.modelHeight), self.modelWidth)
 
-        I = np.arange(self.modelWidth) * self.BLOCK_SIZE + self.BLOCK_SIZE / 2
-        J = np.arange(self.modelHeight) * self.BLOCK_SIZE + self.BLOCK_SIZE / 2
-        points = np.asarray(list(itertools.product(I, J, [1]))).transpose()
+
+        points = np.asarray([I*self.BLOCK_SIZE+self.BLOCK_SIZE/2, J*self.BLOCK_SIZE + self.BLOCK_SIZE/2, np.ones(len(I))])
+
         temp = H.dot(points)
-        NewW = temp[2:]
-        NewX = (temp[0:]/NewW).reshape(self.modelHeight, self.modelWidth)
-        NewY = (temp[1:]/NewW).reshape(self.modelHeight, self.modelWidth)
+        NewW = temp[2, :]
+        NewX = (temp[0, :]/NewW)
+        NewY = (temp[1, :]/NewW)
 
         NewI = NewX / self.BLOCK_SIZE
         NewJ = NewY / self.BLOCK_SIZE
 
-        Di = NewI - np.floor(NewI) - 0.5
-        Dj = NewJ - np.floor(NewJ) - 0.5
+        idxNewI = np.floor(NewI).astype(int)
+        idxNewJ = np.floor(NewJ).astype(int)
+
+        Di = NewI - idxNewI - 0.5
+        Dj = NewJ - idxNewJ - 0.5
+
         aDi = abs(Di)
         aDj = abs(Dj)
 
-        W_H = aDi * (1 - aDj)
-        W_V = aDj * (1 - aDi)
+        m = self.means[0]
+        v = self.vars[0]
 
-        leftMean = self.shift(self.means, 0, -1)
-        rightMean = self.shift(self.means, 0, 1)
+        W_H = (aDi * (1 - aDj)).reshape(self.modelHeight, self.modelWidth)
+        W_V = (aDj * (1 - aDi)).reshape(self.modelHeight, self.modelWidth)
+        W_HV = (aDi * aDj).reshape(self.modelHeight, self.modelWidth)
+        W_self = ((1-aDi) * (1 - aDj)).reshape(self.modelHeight, self.modelWidth)
 
-        upMean = self.shift(self.means, -1, 0)
-        downMean = self.shift(self.means, 1, 0)
+        W = np.zeros((self.modelHeight, self.modelWidth))
 
-        leftAge = self.shift(self.ages, 0, -1)
-        rightAge = self.shift(self.ages, 0, 1)
+        temp = np.zeros(self.means[0].shape)
 
-        upAge = self.shift(self.ages, -1, 0)
-        downAge = self.shift(self.ages, 1, 0)
 
-        t0 = W_H * ((Di + aDi) * leftMean + (aDi - Di)*rightMean) / 2
-        a0 = W_H * ((Di + aDi) * leftAge  + (aDi - Di)*rightAge) / 2
+        NewI_H = idxNewI + np.sign(Di).astype(int)
+        condH = (idxNewJ >= 0) & (idxNewJ < self.modelHeight) & (NewI_H >= 0) & (NewI_H < self.modelWidth)
+        temp[J[condH], I[condH]] = W_H[J[condH], I[condH]] * m[idxNewJ[condH], NewI_H[condH]]
+        W[J[condH], I[condH]] += W_H[J[condH], I[condH]]
 
-        t1 = W_V * ((Dj + aDj) * upMean + (aDj - Dj) * downMean) / 2
-        a1 = W_V * ((Dj + aDj) * upAge  + (aDj - Dj) * downAge) / 2
+        NewJ_V = idxNewJ + np.sign(Dj).astype(int)
+        condH = (NewJ_V >= 0) & (NewJ_V < self.modelHeight) & (idxNewI >= 0) & (idxNewI < self.modelWidth)
+        temp[J[condH], I[condH]] += W_V[J[condH], I[condH]] * m[NewJ_V[condH], idxNewI[condH]]
+        W[J[condH], I[condH]] += W_V[J[condH], I[condH]]
 
+        NewI_H = idxNewI + np.sign(Di).astype(int)
+        NewJ_V = idxNewJ + np.sign(Dj).astype(int)
+        condH = (NewJ_V >= 0) & (NewJ_V < self.modelHeight) & (NewI_H >= 0) & (NewI_H < self.modelWidth)
+        temp[J[condH], I[condH]] += W_HV[J[condH], I[condH]] * m[NewJ_V[condH], NewI_H[condH]]
+        W[J[condH], I[condH]] += W_HV[J[condH], I[condH]]
+
+        condH = (idxNewJ >= 0) & (idxNewJ < self.modelHeight) & (idxNewI >= 0) & (idxNewI < self.modelWidth)
+        temp[J[condH], I[condH]] += W_self[J[condH], I[condH]] * m[idxNewJ[condH], idxNewI[condH]]
+        W[J[condH], I[condH]] += W_self[J[condH], I[condH]]
+
+        self.temp_means[0][W != 0] = 0
+        W[W == 0] = 1
+        self.temp_means[0] += temp/W
+
+        temp_var = np.zeros(self.means[0].shape)
+
+        condH = (idxNewJ >= 0) & (idxNewJ < self.modelHeight) & (NewI_H >= 0) & (NewI_H < self.modelWidth)
+        temp_var[J[condH], I[condH]] = W_H[J[condH], I[condH]] * (v[idxNewJ[condH], NewI_H[condH]] +
+                                                                  np.power(self.temp_means[0][J[condH], I[condH]] -
+                                                                                self.means[0][idxNewJ[condH], NewI_H[condH]], 2))
+
+
+
+        print temp_var.reshape(self.modelHeight* self.modelWidth)
 
 
