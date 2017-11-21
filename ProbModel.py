@@ -8,7 +8,10 @@ class ProbModel:
         self.BLOCK_SIZE	= 4
         self.INIT_BG_VAR = 25 * 25
         self.VAR_THRESH_MODEL_MATCH = 2
+        self.MAX_BG_AGE = 30
         self.VAR_THRESH_FG_DETERMINE = 4.0
+        self.INIT_BG_VAR = 20.0*20.0
+        self.MIN_BG_VAR = 20 * 20
         self.curImage = None
         self.means = None
         self.vars = None
@@ -38,9 +41,9 @@ class ProbModel:
 
         self.modelIndexes = np.zeros((self.modelWidth, self.modelHeight))
         self.means = np.arange(self.NUM_MODELS * self.modelHeight * self.modelWidth).reshape(self.NUM_MODELS, self.modelHeight, self.modelWidth).astype(float)
-        self.temp_means = -1 * np.ones((self.NUM_MODELS, self.modelHeight, self.modelWidth))
-        self.temp_ages = -1 * np.ones((self.NUM_MODELS, self.modelHeight, self.modelWidth))
-        self.temp_vars = -1 * np.ones((self.NUM_MODELS, self.modelHeight, self.modelWidth))
+        self.temp_means = -0 * np.ones((self.NUM_MODELS, self.modelHeight, self.modelWidth))
+        self.temp_ages = -0 * np.ones((self.NUM_MODELS, self.modelHeight, self.modelWidth))
+        self.temp_vars = 0 * np.ones((self.NUM_MODELS, self.modelHeight, self.modelWidth))
         h = np.identity(3)
 
     def shift(self, arr, rr, cc):
@@ -131,7 +134,8 @@ class ProbModel:
         W[:, J[condSelf], I[condSelf]] += W_self[J[condSelf], I[condSelf]]
 
         self.temp_means[W != 0] = 0
-        self.temp_ages = 0
+        self.temp_vars[W != 0] = 0
+        self.temp_ages[:] = 0
         W[W == 0] = 1
         self.temp_means += tempMean / W
         self.temp_ages += tempAges / W
@@ -162,15 +166,17 @@ class ProbModel:
 
 
 
+
     def update(self):
-        print self.temp_ages[0].reshape(-1)
-        print self.temp_ages[1].reshape(-1)
+        # print 'before:'
+        # print self.temp_ages[0].reshape(-1)
+        # print self.temp_ages[1].reshape(-1)
 
         curMean = self.rebin(self.curImage, (self.BLOCK_SIZE, self.BLOCK_SIZE))
-        mm = np.argmax(self.temp_ages, axis=0).reshape(-1)
+        mm = self.NUM_MODELS - np.argmax(self.temp_ages[::-1], axis=0).reshape(-1) - 1
         maxes = np.max(self.temp_ages, axis=0)
-        h, w = self.modelWidth , self.modelHeight
-        jj, ii = np.arange(h*w)/h, np.arange(h*w)%h
+        h, w = self.modelHeight , self.modelWidth
+        jj, ii = np.arange(h*w)/w, np.arange(h*w)%w
         ii, jj = ii[mm != 0], jj[mm != 0]
         mm = mm[mm != 0]
         self.temp_ages[mm, jj, ii] = 0
@@ -184,22 +190,24 @@ class ProbModel:
 
         modelIndex = np.ones(curMean.shape).astype(int)
         cond1 = np.power(curMean - self.temp_means[0], 2) < self.VAR_THRESH_MODEL_MATCH * self.temp_vars[0]
-        modelIndex[cond1] = 0
+
         cond2 = np.power(curMean - self.temp_means[1], 2) < self.VAR_THRESH_MODEL_MATCH * self.temp_vars[1]
-        modelIndex[cond2] = 1
+        modelIndex[cond1] = 0
+        modelIndex[cond2 & ~cond1] = 1
         self.temp_ages[1][(~cond1) & (~cond2)] = 0
 
-        print self.temp_ages[0].reshape(-1)
-        print self.temp_ages[1].reshape(-1)
 
+
+        modelIndexMask = np.arange(self.means.shape[0]).reshape(-1, 1, 1) == modelIndex
 
         alpha = self.temp_ages / (self.temp_ages + 1)
         alpha[self.temp_ages < 1] = 0
-        self.means = self.temp_means * (1 - alpha)
-        jj, ii = np.arange(h*w) / h, np.arange(h*w) % h
-        self.means[modelIndex.reshape(-1), jj, ii] += curMean[jj, ii] * alpha[modelIndex.reshape(-1), jj, ii]
+        alpha[~modelIndexMask] = 1
+        self.means = self.temp_means * alpha + curMean * (1 - alpha)
 
-        bigMeanIndex = np.kron(self.means[modelIndex.reshape(-1), jj, ii].reshape(w, -1), np.ones((self.BLOCK_SIZE, self.BLOCK_SIZE)))
+        jj, ii = np.arange(h * w) / w, np.arange(h * w) % w
+
+        bigMeanIndex = np.kron(self.means[modelIndex.reshape(-1), jj, ii].reshape(h, -1), np.ones((self.BLOCK_SIZE, self.BLOCK_SIZE)))
         bigMean = np.kron(self.means[0], np.ones((self.BLOCK_SIZE, self.BLOCK_SIZE)))
         bigAges = np.kron(self.ages[0], np.ones((self.BLOCK_SIZE, self.BLOCK_SIZE)))
         bigVars = np.kron(self.vars[0], np.ones((self.BLOCK_SIZE, self.BLOCK_SIZE)))
@@ -209,10 +217,20 @@ class ProbModel:
         bigVars = np.pad(bigVars, ((0, a), (0, b)), 'edge')
         bigMeanIndex = np.pad(bigMeanIndex, ((0, a), (0, b)), 'edge')
 
-        temp = self.rebinMax(np.powewr(self.curImage - bigMeanIndex, 2), (self.BLOCK_SIZE, self.BLOCK_SIZE))
+        maxes = self.rebinMax(np.power(self.curImage - bigMeanIndex, 2), (self.BLOCK_SIZE, self.BLOCK_SIZE))
         self.distImg = np.power(self.curImage - bigMean, 2)
         out = np.zeros(self.curImage.shape)
         out[(bigAges > 1) & (self.distImg > self.VAR_THRESH_FG_DETERMINE * bigVars)] = 255
 
+        self.vars = self.temp_vars * alpha + (1 - alpha) * maxes
 
+        # it is correct for all MIN_BG_VAR which is less that INIT_BG_VAR
+        self.vars[(self.vars < self.MIN_BG_VAR) & modelIndexMask] = self.MIN_BG_VAR
 
+        self.ages = self.temp_ages.copy()
+        self.ages[modelIndexMask] += 1
+        self.ages[modelIndexMask & (self.ages > 30)] = 30
+
+        # print 'after:'
+        # print self.vars[0].reshape(-1)
+        # print self.vars[1].reshape(-1)
