@@ -11,7 +11,7 @@ class ProbModel:
         self.MAX_BG_AGE = 30
         self.VAR_THRESH_FG_DETERMINE = 4.0
         self.INIT_BG_VAR = 20.0*20.0
-        self.MIN_BG_VAR = 20 * 20
+        self.MIN_BG_VAR = 5 * 5
         self.curImage = None
         self.means = None
         self.vars = None
@@ -34,17 +34,16 @@ class ProbModel:
         (self.modelHeight, self.modelWidth) = (self.obsHeight/self.BLOCK_SIZE, self.obsWidth/self.BLOCK_SIZE)
         self.means = np.zeros((self.NUM_MODELS, self.modelHeight, self.modelWidth))
         self.vars = np.zeros((self.NUM_MODELS, self.modelHeight, self.modelWidth))
-        self.ages = np.arange(self.NUM_MODELS * self.modelHeight * self.modelWidth)
-        self.ages = (self.ages * self.ages + self.ages) % 123
-
-        self.ages = self.ages.reshape(self.NUM_MODELS, self.modelHeight, self.modelWidth)
+        self.ages = np.zeros((self.NUM_MODELS, self.modelHeight, self.modelWidth))
 
         self.modelIndexes = np.zeros((self.modelWidth, self.modelHeight))
-        self.means = np.arange(self.NUM_MODELS * self.modelHeight * self.modelWidth).reshape(self.NUM_MODELS, self.modelHeight, self.modelWidth).astype(float)
-        self.temp_means = -0 * np.ones((self.NUM_MODELS, self.modelHeight, self.modelWidth))
-        self.temp_ages = -0 * np.ones((self.NUM_MODELS, self.modelHeight, self.modelWidth))
-        self.temp_vars = 0 * np.ones((self.NUM_MODELS, self.modelHeight, self.modelWidth))
-        h = np.identity(3)
+        self.means =  np.zeros((self.NUM_MODELS, self.modelHeight, self.modelWidth))
+        self.temp_means = np.zeros((self.NUM_MODELS, self.modelHeight, self.modelWidth))
+        self.temp_ages = np.zeros((self.NUM_MODELS, self.modelHeight, self.modelWidth))
+        self.temp_vars = np.zeros((self.NUM_MODELS, self.modelHeight, self.modelWidth))
+        H = np.identity(3)
+        self.motionCompensate(H)
+        self.update()
 
     def shift(self, arr, rr, cc):
         (r, c) = arr.shape
@@ -134,7 +133,7 @@ class ProbModel:
         W[:, J[condSelf], I[condSelf]] += W_self[J[condSelf], I[condSelf]]
 
         self.temp_means[W != 0] = 0
-        self.temp_vars[W != 0] = 0
+
         self.temp_ages[:] = 0
         W[W == 0] = 1
         self.temp_means += tempMean / W
@@ -162,7 +161,16 @@ class ProbModel:
                                                                   np.power(self.temp_means[:, J[condSelf], I[condSelf]] -
                                                                            self.means[:, idxNewJ[condSelf], idxNewI[condSelf]],
                                                                            2))
-        self.temp_vars += temp_var / W
+
+
+        self.temp_vars = temp_var / W
+        cond = (idxNewJ < 1) | (idxNewJ >= self.modelHeight - 1) | (idxNewI < 1) | (idxNewI >= self.modelWidth - 1)
+        self.temp_vars[:, J[cond], I[cond]] = self.INIT_BG_VAR
+        self.temp_ages[:, J[cond], I[cond]] = 0
+        self.temp_vars[self.temp_vars < self.MIN_BG_VAR] = self.MIN_BG_VAR
+        print 'compen:'
+        print self.temp_vars[0].reshape(-1).tolist()
+        print self.temp_vars[1].reshape(-1).tolist()
 
 
 
@@ -219,7 +227,7 @@ class ProbModel:
 
         maxes = self.rebinMax(np.power(self.curImage - bigMeanIndex, 2), (self.BLOCK_SIZE, self.BLOCK_SIZE))
         self.distImg = np.power(self.curImage - bigMean, 2)
-        out = np.zeros(self.curImage.shape)
+        out = np.zeros(self.curImage.shape).astype(np.uint8)
         out[(bigAges > 1) & (self.distImg > self.VAR_THRESH_FG_DETERMINE * bigVars)] = 255
 
         self.vars = self.temp_vars * alpha + (1 - alpha) * maxes
@@ -231,6 +239,11 @@ class ProbModel:
         self.ages[modelIndexMask] += 1
         self.ages[modelIndexMask & (self.ages > 30)] = 30
 
-        # print 'after:'
+        print 'after:'
+        print self.means[0].reshape(-1).tolist()
+        print self.means[1].reshape(-1).tolist()
+        print np.sum(self.vars)
+        exit(0)
+        return out
         # print self.vars[0].reshape(-1)
         # print self.vars[1].reshape(-1)
