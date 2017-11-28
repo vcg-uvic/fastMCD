@@ -12,25 +12,20 @@ class ProbModel:
         self.VAR_THRESH_FG_DETERMINE = 4.0
         self.INIT_BG_VAR = 20.0*20.0
         self.MIN_BG_VAR = 5 * 5
-        self.curImage = None
         self.means = None
         self.vars = None
         self.ages = None
         self.temp_means = None
         self.temp_vars = None
         self.temp_ages = None
-        self.distImg = None
-
         self.modelIndexes = None
         self.modelWidth = None
         self.modelHeight = None
         self.obsWidth = None
         self.obsHeight = None
 
-
     def init(self, gray):
         (self.obsHeight, self.obsWidth) = gray.shape
-        self.curImage = gray
         (self.modelHeight, self.modelWidth) = (self.obsHeight/self.BLOCK_SIZE, self.obsWidth/self.BLOCK_SIZE)
         self.means = np.zeros((self.NUM_MODELS, self.modelHeight, self.modelWidth))
         self.vars = np.zeros((self.NUM_MODELS, self.modelHeight, self.modelWidth))
@@ -43,15 +38,7 @@ class ProbModel:
         self.temp_vars = np.zeros((self.NUM_MODELS, self.modelHeight, self.modelWidth))
         H = np.identity(3)
         self.motionCompensate(H)
-        self.update()
-
-    def shift(self, arr, rr, cc):
-        (r, c) = arr.shape
-        t1 = (abs(rr), abs(rr))
-        t2 = (abs(cc), abs(cc))
-        (a, b) = (0, -2 * rr) if rr > 0 else (2 * abs(rr), r + 2 * abs(rr))
-        (c, d) = (0, -2 * cc) if cc > 0 else (2 * abs(cc), c + 2 * abs(cc))
-        return np.pad(arr, (t1, t2), 'constant')[a:b, c:d]
+        self.update(gray)
 
     def rebin(self, arr, factor):
         f = (np.asarray(factor) - arr.shape) % factor
@@ -168,19 +155,13 @@ class ProbModel:
         self.temp_vars[:, J[cond], I[cond]] = self.INIT_BG_VAR
         self.temp_ages[:, J[cond], I[cond]] = 0
         self.temp_vars[self.temp_vars < self.MIN_BG_VAR] = self.MIN_BG_VAR
-        print 'compen:'
-        print self.temp_vars[0].reshape(-1).tolist()
-        print self.temp_vars[1].reshape(-1).tolist()
 
 
 
 
-    def update(self):
-        # print 'before:'
-        # print self.temp_ages[0].reshape(-1)
-        # print self.temp_ages[1].reshape(-1)
+    def update(self, gray):
 
-        curMean = self.rebin(self.curImage, (self.BLOCK_SIZE, self.BLOCK_SIZE))
+        curMean = self.rebin(gray, (self.BLOCK_SIZE, self.BLOCK_SIZE))
         mm = self.NUM_MODELS - np.argmax(self.temp_ages[::-1], axis=0).reshape(-1) - 1
         maxes = np.max(self.temp_ages, axis=0)
         h, w = self.modelHeight , self.modelWidth
@@ -219,31 +200,24 @@ class ProbModel:
         bigMean = np.kron(self.means[0], np.ones((self.BLOCK_SIZE, self.BLOCK_SIZE)))
         bigAges = np.kron(self.ages[0], np.ones((self.BLOCK_SIZE, self.BLOCK_SIZE)))
         bigVars = np.kron(self.vars[0], np.ones((self.BLOCK_SIZE, self.BLOCK_SIZE)))
-        (a, b) = (self.curImage.shape[0] - bigMean.shape[0], self.curImage.shape[1] - bigMean.shape[1])
+        (a, b) = (gray.shape[0] - bigMean.shape[0], gray.shape[1] - bigMean.shape[1])
         bigMean = np.pad(bigMean, ((0, a), (0, b)), 'edge')
         bigAges = np.pad(bigAges, ((0, a), (0, b)), 'edge')
         bigVars = np.pad(bigVars, ((0, a), (0, b)), 'edge')
         bigMeanIndex = np.pad(bigMeanIndex, ((0, a), (0, b)), 'edge')
 
-        maxes = self.rebinMax(np.power(self.curImage - bigMeanIndex, 2), (self.BLOCK_SIZE, self.BLOCK_SIZE))
-        self.distImg = np.power(self.curImage - bigMean, 2)
-        out = np.zeros(self.curImage.shape).astype(np.uint8)
+        maxes = self.rebinMax(np.power(gray - bigMeanIndex, 2), (self.BLOCK_SIZE, self.BLOCK_SIZE))
+        self.distImg = np.power(gray - bigMean, 2)
+        out = np.zeros(gray.shape).astype(np.uint8)
         out[(bigAges > 1) & (self.distImg > self.VAR_THRESH_FG_DETERMINE * bigVars)] = 255
 
         self.vars = self.temp_vars * alpha + (1 - alpha) * maxes
 
-        # it is correct for all MIN_BG_VAR which is less that INIT_BG_VAR
+        self.vars[(self.vars < self.INIT_BG_VAR) & modelIndexMask & (self.ages == 0)] = self.INIT_BG_VAR
         self.vars[(self.vars < self.MIN_BG_VAR) & modelIndexMask] = self.MIN_BG_VAR
 
         self.ages = self.temp_ages.copy()
         self.ages[modelIndexMask] += 1
         self.ages[modelIndexMask & (self.ages > 30)] = 30
 
-        print 'after:'
-        print self.means[0].reshape(-1).tolist()
-        print self.means[1].reshape(-1).tolist()
-        print np.sum(self.vars)
-        exit(0)
         return out
-        # print self.vars[0].reshape(-1)
-        # print self.vars[1].reshape(-1)
