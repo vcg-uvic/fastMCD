@@ -30,7 +30,7 @@ class MCDWrapper:
         
         self.lucasKanade.RunTrack(self.imgGray, self.imgGrayPrev)
         self.model.motionCompensate(self.lucasKanade.H)
-        mask = self.model.update()
+        mask = self.model.update(frame)
         self.imgGrayPrev = self.imgGray.copy()
         return mask
 
