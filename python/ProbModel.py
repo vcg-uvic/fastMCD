@@ -6,7 +6,6 @@ class ProbModel:
     def __init__(self):
         self.NUM_MODELS = 2
         self.BLOCK_SIZE	= 4
-        self.INIT_BG_VAR = 25 * 25
         self.VAR_THRESH_MODEL_MATCH = 2
         self.MAX_BG_AGE = 30
         self.VAR_THRESH_FG_DETERMINE = 4.0
@@ -210,6 +209,9 @@ class ProbModel:
         self.distImg = np.power(gray - bigMean, 2)
         out = np.zeros(gray.shape).astype(np.uint8)
         out[(bigAges > 1) & (self.distImg > self.VAR_THRESH_FG_DETERMINE * bigVars)] = 255
+		
+		alpha = self.temp_ages / (self.temp_ages + 1)
+        alpha[~modelIndexMask] = 1
 
         self.vars = self.temp_vars * alpha + (1 - alpha) * maxes
 
