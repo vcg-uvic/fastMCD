@@ -22,6 +22,8 @@ Important notice
 * Again, this repository is build from a very old backup I had. You can go ahead
   an try,  as the detection  results won't change, but  bare in mind  that there
   might be compiler related issues.
+  
+* **This repository requires OpenCV 2.4.X**
 
 How to compile and test
 --------------------------------------------------------------------------------
