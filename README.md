@@ -25,6 +25,8 @@ Important notice
   
 * **This repository requires OpenCV 2.4.X**
 
+* Python version provided by @alehdaghi. Thank you! 
+
 How to compile and test
 --------------------------------------------------------------------------------
 
