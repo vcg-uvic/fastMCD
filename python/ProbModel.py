@@ -1,15 +1,14 @@
 import numpy as np
-import cv2
-import itertools
+
 
 class ProbModel:
     def __init__(self):
         self.NUM_MODELS = 2
-        self.BLOCK_SIZE	= 4
+        self.BLOCK_SIZE = 4
         self.VAR_THRESH_MODEL_MATCH = 2
         self.MAX_BG_AGE = 30
         self.VAR_THRESH_FG_DETERMINE = 4.0
-        self.INIT_BG_VAR = 20.0*20.0
+        self.INIT_BG_VAR = 20.0 * 20.0
         self.MIN_BG_VAR = 5 * 5
         self.means = None
         self.vars = None
@@ -25,13 +24,14 @@ class ProbModel:
 
     def init(self, gray):
         (self.obsHeight, self.obsWidth) = gray.shape
-        (self.modelHeight, self.modelWidth) = (self.obsHeight/self.BLOCK_SIZE, self.obsWidth/self.BLOCK_SIZE)
+        (self.modelHeight, self.modelWidth) = (int(round(self.obsHeight / self.BLOCK_SIZE)),
+                                               int(round(self.obsWidth / self.BLOCK_SIZE)))
         self.means = np.zeros((self.NUM_MODELS, self.modelHeight, self.modelWidth))
         self.vars = np.zeros((self.NUM_MODELS, self.modelHeight, self.modelWidth))
         self.ages = np.zeros((self.NUM_MODELS, self.modelHeight, self.modelWidth))
 
         self.modelIndexes = np.zeros((self.modelWidth, self.modelHeight))
-        self.means =  np.zeros((self.NUM_MODELS, self.modelHeight, self.modelWidth))
+        self.means = np.zeros((self.NUM_MODELS, self.modelHeight, self.modelWidth))
         self.temp_means = np.zeros((self.NUM_MODELS, self.modelHeight, self.modelWidth))
         self.temp_ages = np.zeros((self.NUM_MODELS, self.modelHeight, self.modelWidth))
         self.temp_vars = np.zeros((self.NUM_MODELS, self.modelHeight, self.modelWidth))
@@ -55,16 +55,15 @@ class ProbModel:
 
     def motionCompensate(self, H):
 
-        I = np.asarray(range(self.modelWidth) * self.modelHeight)
+        I = np.asarray(list(range(self.modelWidth)) * self.modelHeight)
         J = np.repeat(range(self.modelHeight), self.modelWidth)
 
-
-        points = np.asarray([I*self.BLOCK_SIZE+self.BLOCK_SIZE/2, J*self.BLOCK_SIZE + self.BLOCK_SIZE/2, np.ones(len(I))])
+        points = np.asarray([I * self.BLOCK_SIZE + self.BLOCK_SIZE / 2, J * self.BLOCK_SIZE + self.BLOCK_SIZE / 2, np.ones(len(I))])
 
         tempMean = H.dot(points)
         NewW = tempMean[2, :]
-        NewX = (tempMean[0, :]/NewW)
-        NewY = (tempMean[1, :]/NewW)
+        NewX = (tempMean[0, :] / NewW)
+        NewY = (tempMean[1, :] / NewW)
 
         NewI = NewX / self.BLOCK_SIZE
         NewJ = NewY / self.BLOCK_SIZE
@@ -85,13 +84,12 @@ class ProbModel:
         W_H = (aDi * (1 - aDj)).reshape(self.modelHeight, self.modelWidth)
         W_V = (aDj * (1 - aDi)).reshape(self.modelHeight, self.modelWidth)
         W_HV = (aDi * aDj).reshape(self.modelHeight, self.modelWidth)
-        W_self = ((1-aDi) * (1 - aDj)).reshape(self.modelHeight, self.modelWidth)
+        W_self = ((1 - aDi) * (1 - aDj)).reshape(self.modelHeight, self.modelWidth)
 
         W = np.zeros((self.NUM_MODELS, self.modelHeight, self.modelWidth))
 
         tempMean = np.zeros(self.means.shape)
         tempAges = np.zeros(self.means.shape)
-
 
         NewI_H = idxNewI + np.sign(Di).astype(int)
         condH = (idxNewJ >= 0) & (idxNewJ < self.modelHeight) & (NewI_H >= 0) & (NewI_H < self.modelWidth)
@@ -128,26 +126,25 @@ class ProbModel:
         temp_var = np.zeros(self.means.shape)
 
         temp_var[:, J[condH], I[condH]] += W_H[J[condH], I[condH]] * (V[:, idxNewJ[condH], NewI_H[condH]] +
-                                                                  np.power(self.temp_means[:, J[condH], I[condH]] -
-                                                                           self.means[:, idxNewJ[condH], NewI_H[condH]],
-                                                                           2))
+                                                                      np.power(self.temp_means[:, J[condH], I[condH]] -
+                                                                               self.means[:, idxNewJ[condH], NewI_H[condH]],
+                                                                               2))
 
         temp_var[:, J[condV], I[condV]] += W_V[J[condV], I[condV]] * (V[:, NewJ_V[condV], idxNewI[condV]] +
-                                                                   np.power(self.temp_means[:, J[condV], I[condV]] -
-                                                                            self.means[:,
-                                                                                NewJ_V[condV], idxNewI[condV]],
-                                                                            2))
+                                                                      np.power(self.temp_means[:, J[condV], I[condV]] -
+                                                                               self.means[:,
+                                                                                          NewJ_V[condV], idxNewI[condV]],
+                                                                               2))
 
         temp_var[:, J[condHV], I[condHV]] += W_HV[J[condHV], I[condHV]] * (V[:, NewJ_V[condHV], NewI_H[condHV]] +
-                                                                  np.power(self.temp_means[:, J[condHV], I[condHV]] -
-                                                                           self.means[:, NewJ_V[condHV], NewI_H[condHV]],
-                                                                           2))
+                                                                           np.power(self.temp_means[:, J[condHV], I[condHV]] -
+                                                                                    self.means[:, NewJ_V[condHV], NewI_H[condHV]],
+                                                                                    2))
 
         temp_var[:, J[condSelf], I[condSelf]] += W_self[J[condSelf], I[condSelf]] * (V[:, idxNewJ[condSelf], idxNewI[condSelf]] +
-                                                                  np.power(self.temp_means[:, J[condSelf], I[condSelf]] -
-                                                                           self.means[:, idxNewJ[condSelf], idxNewI[condSelf]],
-                                                                           2))
-
+                                                                                     np.power(self.temp_means[:, J[condSelf], I[condSelf]] -
+                                                                                              self.means[:, idxNewJ[condSelf], idxNewI[condSelf]],
+                                                                                              2))
 
         self.temp_vars = temp_var / W
         cond = (idxNewJ < 1) | (idxNewJ >= self.modelHeight - 1) | (idxNewI < 1) | (idxNewI >= self.modelWidth - 1)
@@ -155,17 +152,14 @@ class ProbModel:
         self.temp_ages[:, J[cond], I[cond]] = 0
         self.temp_vars[self.temp_vars < self.MIN_BG_VAR] = self.MIN_BG_VAR
 
-
-
-
     def update(self, gray):
 
         curMean = self.rebin(gray, (self.BLOCK_SIZE, self.BLOCK_SIZE))
         mm = self.NUM_MODELS - np.argmax(self.temp_ages[::-1], axis=0).reshape(-1) - 1
         maxes = np.max(self.temp_ages, axis=0)
-        h, w = self.modelHeight , self.modelWidth
-        jj, ii = np.arange(h*w)/w, np.arange(h*w)%w
-        ii, jj = ii[mm != 0], jj[mm != 0]
+        h, w = self.modelHeight, self.modelWidth
+        jj, ii = np.arange(h * w) / w, np.arange(h * w) % w
+        ii, jj = ii[mm != 0], np.array(jj[mm != 0]).astype(int)
         mm = mm[mm != 0]
         self.temp_ages[mm, jj, ii] = 0
         self.temp_ages[0] = maxes
@@ -184,8 +178,6 @@ class ProbModel:
         modelIndex[cond2 & ~cond1] = 1
         self.temp_ages[1][(~cond1) & (~cond2)] = 0
 
-
-
         modelIndexMask = np.arange(self.means.shape[0]).reshape(-1, 1, 1) == modelIndex
 
         alpha = self.temp_ages / (self.temp_ages + 1)
@@ -193,7 +185,7 @@ class ProbModel:
         alpha[~modelIndexMask] = 1
         self.means = self.temp_means * alpha + curMean * (1 - alpha)
 
-        jj, ii = np.arange(h * w) / w, np.arange(h * w) % w
+        jj, ii = np.array(np.arange(h * w) / w).astype(int), np.array(np.arange(h * w) % w).astype(int)
 
         bigMeanIndex = np.kron(self.means[modelIndex.reshape(-1), jj, ii].reshape(h, -1), np.ones((self.BLOCK_SIZE, self.BLOCK_SIZE)))
         bigMean = np.kron(self.means[0], np.ones((self.BLOCK_SIZE, self.BLOCK_SIZE)))
@@ -209,8 +201,8 @@ class ProbModel:
         self.distImg = np.power(gray - bigMean, 2)
         out = np.zeros(gray.shape).astype(np.uint8)
         out[(bigAges > 1) & (self.distImg > self.VAR_THRESH_FG_DETERMINE * bigVars)] = 255
-		
-		alpha = self.temp_ages / (self.temp_ages + 1)
+
+        alpha = self.temp_ages / (self.temp_ages + 1)
         alpha[~modelIndexMask] = 1
 
         self.vars = self.temp_vars * alpha + (1 - alpha) * maxes

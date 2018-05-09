@@ -1,5 +1,3 @@
-import numpy as np
-import cv2
 import KLTWrapper
 import ProbModel
 
@@ -19,7 +17,6 @@ class MCDWrapper:
         self.lucasKanade.init(self.imgGray)
         self.model.init(self.imgGray)
 
-
     def run(self, frame):
         self.frm_cnt += 1
         self.imgIpl = frame
@@ -27,14 +24,9 @@ class MCDWrapper:
         # self.imgGray = cv2.medianBlur(imgGray, 5)
         if self.imgGrayPrev is None:
             self.imgGrayPrev = self.imgGray.copy()
-        
+
         self.lucasKanade.RunTrack(self.imgGray, self.imgGrayPrev)
         self.model.motionCompensate(self.lucasKanade.H)
         mask = self.model.update(frame)
         self.imgGrayPrev = self.imgGray.copy()
         return mask
-
-
-
-
-
