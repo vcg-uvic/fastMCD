@@ -2,8 +2,6 @@ import numpy as np
 import cv2
 import MCDWrapper
 
-gray1 = cv2.imread('/home/mahdi/Apps/others/probModel/gg1.jpg', 2)
-gray2 = cv2.imread('/home/mahdi/Apps/others/probModel/gg2.jpg', 2)
 np.set_printoptions(precision=2, suppress=True)
 cap = cv2.VideoCapture('woman.mp4')
 mcd = MCDWrapper.MCDWrapper()
