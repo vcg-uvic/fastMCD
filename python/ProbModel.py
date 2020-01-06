@@ -25,7 +25,7 @@ class ProbModel:
 
     def init(self, gray):
         (self.obsHeight, self.obsWidth) = gray.shape
-        (self.modelHeight, self.modelWidth) = (self.obsHeight/self.BLOCK_SIZE, self.obsWidth/self.BLOCK_SIZE)
+        (self.modelHeight, self.modelWidth) = (self.obsHeight//self.BLOCK_SIZE, self.obsWidth//self.BLOCK_SIZE)
         self.means = np.zeros((self.NUM_MODELS, self.modelHeight, self.modelWidth))
         self.vars = np.zeros((self.NUM_MODELS, self.modelHeight, self.modelWidth))
         self.ages = np.zeros((self.NUM_MODELS, self.modelHeight, self.modelWidth))
@@ -55,7 +55,7 @@ class ProbModel:
 
     def motionCompensate(self, H):
 
-        I = np.asarray(range(self.modelWidth) * self.modelHeight)
+        I = np.array([range(self.modelWidth)]*self.modelHeight).flatten()
         J = np.repeat(range(self.modelHeight), self.modelWidth)
 
 
@@ -159,12 +159,12 @@ class ProbModel:
 
 
     def update(self, gray):
-
         curMean = self.rebin(gray, (self.BLOCK_SIZE, self.BLOCK_SIZE))
         mm = self.NUM_MODELS - np.argmax(self.temp_ages[::-1], axis=0).reshape(-1) - 1
         maxes = np.max(self.temp_ages, axis=0)
         h, w = self.modelHeight , self.modelWidth
-        jj, ii = np.arange(h*w)/w, np.arange(h*w)%w
+        jj, ii = np.arange(h*w)//w, np.arange(h*w)%w
+
         ii, jj = ii[mm != 0], jj[mm != 0]
         mm = mm[mm != 0]
         self.temp_ages[mm, jj, ii] = 0
@@ -193,7 +193,7 @@ class ProbModel:
         alpha[~modelIndexMask] = 1
         self.means = self.temp_means * alpha + curMean * (1 - alpha)
 
-        jj, ii = np.arange(h * w) / w, np.arange(h * w) % w
+        jj, ii = np.arange(h * w) // w, np.arange(h * w) % w
 
         bigMeanIndex = np.kron(self.means[modelIndex.reshape(-1), jj, ii].reshape(h, -1), np.ones((self.BLOCK_SIZE, self.BLOCK_SIZE)))
         bigMean = np.kron(self.means[0], np.ones((self.BLOCK_SIZE, self.BLOCK_SIZE)))
@@ -210,7 +210,7 @@ class ProbModel:
         out = np.zeros(gray.shape).astype(np.uint8)
         out[(bigAges > 1) & (self.distImg > self.VAR_THRESH_FG_DETERMINE * bigVars)] = 255
 		
-		alpha = self.temp_ages / (self.temp_ages + 1)
+        alpha = self.temp_ages / (self.temp_ages + 1)
         alpha[~modelIndexMask] = 1
 
         self.vars = self.temp_vars * alpha + (1 - alpha) * maxes

@@ -44,7 +44,8 @@ class KLTWrapper:
         lenJ = nj / self.GRID_SIZE_H - 1
         J = np.arange(lenI*lenJ) / lenJ * self.GRID_SIZE_W + self.GRID_SIZE_W / 2
         I = np.arange(lenJ*lenI) % lenJ * self.GRID_SIZE_H + self.GRID_SIZE_H / 2
-        self.points1 = np.expand_dims(zip(J, I), 1).astype(np.float32)
+
+        self.points1 = np.expand_dims(np.array(list(zip(J, I))), 1).astype(np.float32)
         self.points0, self.points1 = self.points1, self.points0
 
     def RunTrack(self, image, imgPrev):
